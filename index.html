@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="theme-color" content="#e9eef2">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vent or Not</title>
+<style>
+:root{
+  --bg:#e9eef2; --card:#ffffff; --ink:#14232e; --mute:#5b6e7b; --line:#d3dde4;
+  --water:#1f6f9c; --go:#1b7f5c; --go-bg:#dcf2ea; --maybe:#9a6a00; --maybe-bg:#fbefc9;
+  --stop:#b3412f; --stop-bg:#f9e0da; color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root{--bg:#0f1a22; --card:#182630; --ink:#e7eff4; --mute:#93a7b5; --line:#2a3b47;
+  --water:#6cbbe6; --go:#59d1a3; --go-bg:#133329; --maybe:#f0c14b; --maybe-bg:#3a2f10;
+  --stop:#f08c78; --stop-bg:#40201a; color-scheme:dark;}
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:16px/1.45 "Avenir Next","Segoe UI",Roboto,system-ui,sans-serif;
+  padding:16px 16px 40px;max-width:520px;margin:0 auto}
+h1{font-size:22px;margin:4px 0 2px;letter-spacing:-.01em}
+.sub{color:var(--mute);margin:0 0 16px;font-size:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;margin-bottom:14px}
+.card h2{font-size:15px;margin:0 0 12px;font-weight:650}
+.row{display:flex;gap:12px}
+.field{flex:1;min-width:0}
+label{display:block;font-size:13px;color:var(--mute);margin-bottom:4px}
+input[type=number],input[type=text]{width:100%;font:inherit;font-size:20px;padding:10px 12px;border-radius:12px;
+  border:1px solid var(--line);background:transparent;color:var(--ink)}
+input:focus,button:focus-visible{outline:2px solid var(--water);outline-offset:1px}
+input[type=range]{width:100%;accent-color:var(--water);margin:6px 0 0}
+.rhval{font-size:20px;font-weight:650}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;float:right}
+.seg button{border:0;background:transparent;color:var(--mute);padding:6px 14px;font:inherit;font-size:14px}
+.seg button.on{background:var(--water);color:var(--bg)}
+button.link{background:none;border:0;color:var(--water);font:inherit;font-size:14px;padding:6px 0;margin-right:14px}
+.where{font-size:14px;color:var(--mute);margin:0 0 10px}
+.where b{color:var(--ink);font-weight:600}
+#results{margin:6px 0 0;padding:0;list-style:none}
+#results li button{width:100%;text-align:left;background:none;border:0;border-top:1px solid var(--line);
+  color:var(--ink);font:inherit;padding:10px 2px}
+.verdict{border-radius:18px;padding:18px;margin-bottom:14px}
+.verdict.go{background:var(--go-bg);color:var(--go)}
+.verdict.maybe{background:var(--maybe-bg);color:var(--maybe)}
+.verdict.stop{background:var(--stop-bg);color:var(--stop)}
+.verdict .big{font-size:26px;font-weight:700;letter-spacing:-.02em;line-height:1.15;margin:0 0 6px}
+.verdict p{margin:0;color:var(--ink);font-size:15px}
+.limit{display:flex;justify-content:space-between;align-items:baseline;padding:10px 0;border-top:1px solid var(--line)}
+.limit:first-of-type{border-top:0;padding-top:0}
+.limit span{font-size:14px;color:var(--mute);max-width:62%}
+.limit strong{font-size:24px;letter-spacing:-.02em}
+.scale{position:relative;height:46px;margin:18px 4px 6px}
+.track{position:absolute;left:0;right:0;top:20px;height:8px;border-radius:4px;background:var(--line);overflow:hidden}
+.zone{position:absolute;top:0;bottom:0;background:var(--go)}
+.pin{position:absolute;top:8px;width:2px;height:32px;background:var(--ink);transform:translateX(-1px)}
+.pin i{position:absolute;top:-17px;left:50%;transform:translateX(-50%);font:600 12px/1 inherit;font-style:normal;white-space:nowrap}
+.tick{position:absolute;top:30px;width:2px;height:14px;background:var(--water);transform:translateX(-1px)}
+.legend{font-size:12px;color:var(--mute);display:flex;gap:14px;flex-wrap:wrap}
+.legend em{font-style:normal;display:inline-flex;align-items:center;gap:5px}
+.legend em::before{content:"";width:10px;height:10px;border-radius:3px;background:var(--go)}
+.legend em.o::before{background:var(--ink);width:3px;border-radius:0;height:12px}
+.note{font-size:13px;color:var(--mute);margin:4px 2px}
+.strip{display:flex;gap:3px;align-items:flex-end;height:44px;margin:4px 0 4px}
+.strip div{flex:1;border-radius:4px;height:100%}
+.strip .go{background:var(--go)}.strip .maybe{background:var(--maybe)}.strip .stop{background:var(--stop);opacity:.55}
+.hrs{display:flex;gap:3px;font-size:11px;color:var(--mute);margin-bottom:8px}
+.hrs span{flex:1;text-align:center;min-height:14px}
+.err{color:var(--stop);font-size:14px;margin:6px 0 0}
+</style>
+</head>
+<body>
+<h1>Vent or Not</h1>
+<p class="sub">Will outside air dry the house, or soak it? Works for the HRV and for windows.</p>
+
+<div id="verdict" class="verdict maybe"><p class="big">Loading…</p></div>
+
+<div class="card" id="limits"></div>
+<div class="card" id="fc" hidden></div>
+
+<div class="card">
+  <h2>Inside the house
+    <span class="seg" role="group" aria-label="Units">
+      <button id="uC">°C</button><button id="uF">°F</button>
+    </span>
+  </h2>
+  <div class="row">
+    <div class="field"><label for="inT">Indoor temperature</label>
+      <input id="inT" type="number" inputmode="decimal" step="0.5"></div>
+    <div class="field"><label for="rh">Target humidity</label>
+      <div class="rhval"><span id="rhv"></span></div>
+      <input id="rh" type="range" min="20" max="70" step="1"></div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Outside</h2>
+  <p class="where" id="where">No location set.</p>
+  <div style="margin-bottom:10px">
+    <button class="link" id="geo">Use my location</button>
+    <button class="link" id="refresh">Refresh</button>
+  </div>
+  <div class="row">
+    <div class="field"><label for="outT">Outdoor temperature</label>
+      <input id="outT" type="number" inputmode="decimal" step="0.5"></div>
+    <div class="field"><label for="outRH">Outdoor humidity %</label>
+      <input id="outRH" type="number" inputmode="numeric" min="1" max="100"></div>
+  </div>
+  <p class="note" id="stamp"></p>
+  <div style="margin-top:12px"><label for="q">Or search for a city</label>
+    <input id="q" type="text" placeholder="e.g. Ottawa"></div>
+  <ul id="results"></ul>
+  <div class="err" id="err"></div>
+</div>
+
+<div class="card">
+  <h2>HRV cold limit</h2>
+  <div class="field"><label for="frz">Don't run the HRV below</label>
+    <input id="frz" type="number" inputmode="decimal" step="1"></div>
+  <p class="note">Check your HRV manual for its minimum outdoor temperature or frost-protection setting.</p>
+</div>
+
+<script>
+const B = 17.62, C = 243.12;
+const $ = id => document.getElementById(id);
+let S = { unit:'C', inT:21, rh:40, outT:null, outRH:null, frz:-20, place:null, stamp:'', hours:[] };
+
+try { Object.assign(S, JSON.parse(localStorage.getItem('ventornot') || '{}')); } catch(e) {}
+const save = () => { try { localStorage.setItem('ventornot', JSON.stringify(S)); } catch(e) {} };
+
+const toU = c => S.unit === 'F' ? c * 9/5 + 32 : c;
+const fromU = v => S.unit === 'F' ? (v - 32) * 5/9 : v;
+const r1 = v => Math.round(v * 10) / 10;
+const fmt = c => r1(toU(c)) + '°' + S.unit;
+
+// Magnus dew point and its inverse (all °C)
+const dew = (T, rh) => { const g = Math.log(rh/100) + B*T/(C+T); return C*g/(B-g); };
+const tempForDew = (Td, rh) => { const g = B*Td/(C+Td) - Math.log(rh/100); return C*g/(B-g); };
+
+function writeInputs() {
+  $('inT').value = r1(toU(S.inT));
+  $('rh').value = S.rh; $('rhv').textContent = S.rh + '%';
+  $('outT').value = S.outT == null ? '' : r1(toU(S.outT));
+  $('outRH').value = S.outRH == null ? '' : Math.round(S.outRH);
+  $('frz').value = r1(toU(S.frz));
+  $('uC').classList.toggle('on', S.unit === 'C');
+  $('uF').classList.toggle('on', S.unit === 'F');
+  $('where').innerHTML = S.place ? 'Showing weather for <b>' + S.place.name + '</b>' : 'No location set. Use your location or search below.';
+  $('stamp').textContent = S.stamp;
+}
+
+function render() {
+  const tdIn = dew(S.inT, S.rh);
+  const haveOut = S.outT != null && S.outRH != null && S.outRH > 0;
+  let html = '';
+  html += '<div class="limit"><span>Outside air is always drier than your target below</span><strong>' + fmt(tdIn) + '</strong></div>';
+  let lim = null, tdOut = null;
+  if (haveOut) {
+    lim = tempForDew(tdIn, S.outRH);
+    tdOut = dew(S.outT, S.outRH);
+    html += '<div class="limit"><span>At today\u2019s outdoor humidity (' + Math.round(S.outRH) + '%), ventilating only dries below</span><strong>' + fmt(lim) + '</strong></div>';
+  }
+  html += '<div class="limit"><span>Indoor dew point at your settings</span><strong>' + fmt(tdIn) + '</strong></div>';
+  if (haveOut) {
+    const lo = Math.min(S.outT, S.frz, lim) - 6, hi = Math.max(S.outT, lim, tdIn) + 6, rng = hi - lo;
+    const pos = t => ((t - lo) / rng * 100) + '%';
+    const zoneL = pos(S.frz > lim ? lim : S.frz), zoneW = (Math.max(0, lim - S.frz) / rng * 100) + '%';
+    html += '<div class="scale"><div class="track"><div class="zone" style="left:' + zoneL + ';width:' + zoneW + '"></div></div>' +
+      '<div class="tick" style="left:' + pos(S.frz) + '" title="HRV cold limit"></div>' +
+      '<div class="pin" style="left:' + pos(S.outT) + '"><i>' + fmt(S.outT) + '</i></div></div>' +
+      '<div class="legend"><em>Good to ventilate</em><em class="o">Outside now</em></div>';
+  }
+  $('limits').innerHTML = html;
+  renderForecast(tdIn);
+
+  const v = $('verdict');
+  if (!haveOut) {
+    v.className = 'verdict maybe';
+    v.innerHTML = '<p class="big">Add the outdoor conditions</p><p>Set a location or type the outdoor temperature and humidity.</p>';
+    return;
+  }
+  const margin = tdIn - tdOut;
+  const tooCold = S.outT < S.frz;
+  if (margin <= 0) {
+    v.className = 'verdict stop';
+    v.innerHTML = '<p class="big">Don\u2019t ventilate for humidity</p><p>Outside air holds more moisture than your target indoors (dew point ' + fmt(tdOut) + ' vs ' + fmt(tdIn) + '). It would raise indoor humidity.' + (lim != null ? ' Wait until it\u2019s below ' + fmt(lim) + ' at this humidity.' : '') + '</p>';
+  } else if (margin < 2) {
+    v.className = 'verdict maybe';
+    v.innerHTML = '<p class="big">Marginal</p><p>Outside air is only ' + r1(margin * (S.unit === 'F' ? 1.8 : 1)) + '°' + S.unit + ' (dew point) drier than your target. Expect little drying; not worth it.</p>';
+  } else {
+    v.className = 'verdict go';
+    v.innerHTML = '<p class="big">Good to ventilate</p><p>Outside air is drier than your target (dew point ' + fmt(tdOut) + ' vs ' + fmt(tdIn) + '). Windows or the HRV will lower indoor humidity.</p>';
+  }
+  if (tooCold) {
+    v.innerHTML += '<p style="margin-top:8px"><b>HRV caution:</b> it\u2019s below your HRV cold limit (' + fmt(S.frz) + '). Windows work for drying, but the HRV may frost up.</p>';
+  }
+}
+
+const hrLabel = t => { const h = parseInt(t.slice(11, 13), 10); return (h % 12 || 12) + (h < 12 ? 'a' : 'p'); };
+function renderForecast(tdIn) {
+  const el = $('fc');
+  if (!S.hours || !S.hours.length) { el.hidden = true; return; }
+  const st = S.hours.map(h => { const m = tdIn - dew(h.t, Math.max(1, h.rh)); return m >= 2 ? 'go' : m > 0 ? 'maybe' : 'stop'; });
+  let msg;
+  if (st[0] === 'go') { const j = st.findIndex(x => x !== 'go'); msg = j < 0 ? 'Good to ventilate for the next 12 hours.' : 'Good to ventilate until about ' + hrLabel(S.hours[j].time) + '.'; }
+  else { const k = st.indexOf('go'); msg = k < 0 ? 'No good window in the next 12 hours.' : 'Next good window starts around ' + hrLabel(S.hours[k].time) + '.'; }
+  el.hidden = false;
+  el.innerHTML = '<h2>Next 12 hours</h2><div class="strip">' + st.map(x => '<div class="' + x + '"></div>').join('') + '</div>' +
+    '<div class="hrs">' + S.hours.map((h, i) => '<span>' + (i % 3 === 0 ? hrLabel(h.time) : '') + '</span>').join('') + '</div>' +
+    '<p class="note" style="margin:0;color:var(--ink);font-size:15px">' + msg + '</p>';
+}
+
+function update() { save(); render(); }
+
+// Weather and city search come straight from Open-Meteo (free, no API key)
+const WX = 'https://api.open-meteo.com/v1/forecast?current=temperature_2m,relative_humidity_2m&hourly=temperature_2m,relative_humidity_2m&forecast_days=2&timezone=auto';
+async function api(name, ...a) {
+  if (name === 'geocode') {
+    const j = await (await fetch('https://geocoding-api.open-meteo.com/v1/search?count=5&language=en&name=' + encodeURIComponent(a[0]))).json();
+    return (j.results || []).map(r => ({ name: [r.name, r.admin1, r.country_code].filter(Boolean).join(', '), lat: r.latitude, lon: r.longitude }));
+  }
+  const j = await (await fetch(WX + '&latitude=' + a[0] + '&longitude=' + a[1])).json();
+  return { current: j.current, hourly: j.hourly };
+}
+
+async function loadWeather() {
+  $('err').textContent = '';
+  if (!S.place) return;
+  try {
+    const w = await api('getWeather', S.place.lat, S.place.lon);
+    const c = w.current; S.outT = c.temperature_2m; S.outRH = c.relative_humidity_2m;
+    const start = w.hourly.time.findIndex(t => t >= c.time.slice(0, 13) + ':00');
+    S.hours = []; for (let i = Math.max(0, start); i < Math.max(0, start) + 12 && i < w.hourly.time.length; i++)
+      S.hours.push({ time: w.hourly.time[i], t: w.hourly.temperature_2m[i], rh: w.hourly.relative_humidity_2m[i] });
+    S.stamp = 'Updated ' + new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    writeInputs(); update();
+  } catch (e) { $('err').textContent = 'Couldn\u2019t load the weather. Type the outdoor values by hand or try again.'; }
+}
+
+$('inT').oninput = e => { const v = parseFloat(e.target.value); if (!isNaN(v)) { S.inT = fromU(v); update(); } };
+$('rh').oninput = e => { S.rh = +e.target.value; $('rhv').textContent = S.rh + '%'; update(); };
+$('outT').oninput = e => { const v = parseFloat(e.target.value); S.outT = isNaN(v) ? null : fromU(v); S.stamp = 'Entered by hand'; $('stamp').textContent = S.stamp; update(); };
+$('outRH').oninput = e => { const v = parseFloat(e.target.value); S.outRH = isNaN(v) ? null : Math.min(100, v); S.stamp = 'Entered by hand'; $('stamp').textContent = S.stamp; update(); };
+$('frz').oninput = e => { const v = parseFloat(e.target.value); if (!isNaN(v)) { S.frz = fromU(v); update(); } };
+$('uC').onclick = () => { S.unit = 'C'; writeInputs(); update(); };
+$('uF').onclick = () => { S.unit = 'F'; writeInputs(); update(); };
+$('refresh').onclick = loadWeather;
+
+$('geo').onclick = () => {
+  $('err').textContent = '';
+  if (!navigator.geolocation) { $('err').textContent = 'Location isn\u2019t available here. Search for your city instead.'; return; }
+  navigator.geolocation.getCurrentPosition(p => {
+    S.place = { name: 'Your location', lat: p.coords.latitude, lon: p.coords.longitude };
+    writeInputs(); loadWeather();
+  }, () => { $('err').textContent = 'Location permission was denied. Search for your city instead.'; }, { timeout: 8000 });
+};
+
+let t;
+$('q').oninput = e => {
+  clearTimeout(t);
+  const q = e.target.value.trim();
+  if (q.length < 2) { $('results').innerHTML = ''; return; }
+  t = setTimeout(async () => {
+    try {
+      const rs = await api('geocode', q);
+      $('results').innerHTML = '';
+      rs.forEach(r => {
+        const li = document.createElement('li'), b = document.createElement('button');
+        b.textContent = r.name;
+        b.onclick = () => { S.place = r; $('results').innerHTML = ''; $('q').value = ''; writeInputs(); loadWeather(); };
+        li.appendChild(b); $('results').appendChild(li);
+      });
+      if (!rs.length) $('results').innerHTML = '<li class="note">No matches.</li>';
+    } catch (e) { $('err').textContent = 'Search failed. Try again.'; }
+  }, 350);
+};
+
+writeInputs(); render();
+if (S.place) loadWeather();
+</script>
+</body>
+</html>
