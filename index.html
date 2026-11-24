@@ -71,6 +71,9 @@ button.link{background:none;border:0;color:var(--water);font:inherit;font-size:1
 .strip .go{background:var(--go)}.strip .maybe{background:var(--maybe)}.strip .stop{background:var(--stop);opacity:.55}
 .hrs{display:flex;gap:3px;font-size:11px;color:var(--mute);margin-bottom:8px}
 .hrs span{flex:1;text-align:center;min-height:14px}
+.sug{margin-top:12px;padding:10px 12px;border-radius:12px;background:var(--bg);font-size:14px;display:flex;align-items:center;gap:10px;justify-content:space-between}
+.sug b{font-size:18px}
+.sug button{border:0;border-radius:10px;background:var(--water);color:var(--bg);font:inherit;font-size:14px;font-weight:600;padding:8px 14px;flex:none}
 .err{color:var(--stop);font-size:14px;margin:6px 0 0}
 </style>
 </head>
@@ -96,6 +99,7 @@ button.link{background:none;border:0;color:var(--water);font:inherit;font-size:1
       <div class="rhval"><span id="rhv"></span></div>
       <input id="rh" type="range" min="20" max="70" step="1"></div>
   </div>
+  <div class="sug" id="sug" hidden></div>
 </div>
 
 <div class="card">
@@ -154,7 +158,29 @@ function writeInputs() {
   $('stamp').textContent = S.stamp;
 }
 
+// Recommended max indoor RH vs outdoor temp (typical double-pane windows, to avoid window condensation)
+const RH_TABLE = [[-40, 20], [-30, 25], [-20, 30], [-10, 35], [0, 40], [10, 50]];
+function suggestRH(t) {
+  if (t <= RH_TABLE[0][0]) return RH_TABLE[0][1];
+  if (t >= RH_TABLE[RH_TABLE.length - 1][0]) return RH_TABLE[RH_TABLE.length - 1][1];
+  for (let i = 1; i < RH_TABLE.length; i++) {
+    const [t1, r1_] = RH_TABLE[i - 1], [t2, r2] = RH_TABLE[i];
+    if (t <= t2) return Math.round(r1_ + (r2 - r1_) * (t - t1) / (t2 - t1));
+  }
+}
+function renderSuggest() {
+  const el = $('sug');
+  if (S.outT == null) { el.hidden = true; return; }
+  const v = suggestRH(S.outT);
+  el.hidden = false;
+  el.innerHTML = '<span>Suggested max for ' + fmt(S.outT) + ' outside: <b>' + v + '%</b><br><small style="color:var(--mute)">Keeps windows from fogging or icing (typical double-pane).</small></span>' +
+    (S.rh === v ? '' : '<button id="useSug">Use ' + v + '%</button>');
+  const b = $('useSug');
+  if (b) b.onclick = () => { S.rh = v; writeInputs(); update(); };
+}
+
 function render() {
+  renderSuggest();
   const tdIn = dew(S.inT, S.rh);
   const haveOut = S.outT != null && S.outRH != null && S.outRH > 0;
   let html = '';
